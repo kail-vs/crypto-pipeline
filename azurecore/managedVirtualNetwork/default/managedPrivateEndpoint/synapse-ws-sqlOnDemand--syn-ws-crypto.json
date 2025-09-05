@@ -1,0 +1,10 @@
+{
+	"name": "synapse-ws-sqlOnDemand--syn-ws-crypto",
+	"properties": {
+		"privateLinkResourceId": "/subscriptions/162c552f-9bbc-4268-ae04-e728e50b186a/resourceGroups/rg-crypto-pipeline/providers/Microsoft.Synapse/workspaces/syn-ws-crypto",
+		"groupId": "sqlOnDemand",
+		"fqdns": [
+			"syn-ws-crypto-ondemand.84b0ece4-9ea2-4d16-bcdc-27fc13b7a4df.sql.azuresynapse.net"
+		]
+	}
+}
