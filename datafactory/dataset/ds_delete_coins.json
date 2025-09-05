@@ -1,0 +1,19 @@
+{
+	"name": "ds_delete_coins",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_crypopipestoorage",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Binary",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"folderPath": "coins_markets",
+				"fileSystem": "raw"
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

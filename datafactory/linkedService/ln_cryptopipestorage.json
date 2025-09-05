@@ -1,0 +1,12 @@
+{
+	"name": "ln_cryptopipestorage",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "AzureBlobStorage",
+		"typeProperties": {
+			"serviceEndpoint": "https://cryptopipestorage.blob.core.windows.net/",
+			"accountKind": "StorageV2"
+		}
+	}
+}

@@ -1,0 +1,93 @@
+{
+	"name": "df_bronze_to_silver",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "Jsonl",
+						"type": "DatasetReference"
+					},
+					"name": "RawSource"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "Parquet",
+						"type": "DatasetReference"
+					},
+					"name": "sink1",
+					"rejectedDataLinkedService": {
+						"referenceName": "ls_crypopipestoorage",
+						"type": "LinkedServiceReference"
+					}
+				}
+			],
+			"transformations": [
+				{
+					"name": "DerivedColumns"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          id as string,",
+				"          symbol as string,",
+				"          name as string,",
+				"          image as string,",
+				"          current_price as double,",
+				"          market_cap as integer,",
+				"          market_cap_rank as integer,",
+				"          fully_diluted_valuation as integer,",
+				"          total_volume as integer,",
+				"          high_24h as double,",
+				"          low_24h as double,",
+				"          price_change_24h as double,",
+				"          price_change_percentage_24h as double,",
+				"          market_cap_change_24h as integer,",
+				"          market_cap_change_percentage_24h as double,",
+				"          circulating_supply as double,",
+				"          total_supply as double,",
+				"          max_supply as double,",
+				"          ath as double,",
+				"          ath_change_percentage as double,",
+				"          ath_date as string,",
+				"          atl as double,",
+				"          atl_change_percentage as double,",
+				"          atl_date as string,",
+				"          roi as (times as double, currency as string, percentage as double),",
+				"          last_updated as string,",
+				"          price_change_percentage_1h_in_currency as double,",
+				"          price_change_percentage_24h_in_currency as double,",
+				"          price_change_percentage_7d_in_currency as double,",
+				"          {_ingested_at_utc} as string,",
+				"          year as string,",
+				"          month as string,",
+				"          day as string,",
+				"          hour as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     rowUrlColumn: 'source_file',",
+				"     documentForm: 'documentPerLine') ~> RawSource",
+				"RawSource derive(ingestion_time = currentUTC(),",
+				"          source_file = split(source_file, '/')[size(split(source_file, '/')) - 1]) ~> DerivedColumns",
+				"DerivedColumns sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     filePattern:(concat(toString(year(currentUTC())), '/',\r",
+				"       lpad(toString(month(currentUTC())),2,'0'), '/',\r",
+				"       lpad(toString(dayOfMonth(currentUTC())),2,'0'), '/',\r",
+				"       lpad(toString(hour(currentUTC())),2,'0'))\r",
+				"),",
+				"     umask: 0622,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sink1"
+			]
+		}
+	}
+}

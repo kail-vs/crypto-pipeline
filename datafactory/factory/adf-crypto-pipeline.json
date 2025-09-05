@@ -1,0 +1,9 @@
+{
+	"name": "adf-crypto-pipeline",
+	"location": "southeastasia",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "bc0a736a-529d-486c-8050-3a5547b15764",
+		"tenantId": "34bd8bed-2ac1-41ae-9f08-4e0a3f11706c"
+	}
+}

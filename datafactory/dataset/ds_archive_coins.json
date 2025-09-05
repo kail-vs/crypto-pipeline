@@ -1,0 +1,23 @@
+{
+	"name": "ds_archive_coins",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_crypopipestoorage",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Binary",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"folderPath": "coins",
+				"fileSystem": "archive"
+			},
+			"compression": {
+				"type": "gzip",
+				"level": "Optimal"
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}
