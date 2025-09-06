@@ -1,0 +1,58 @@
+{
+	"name": "ds_silver_parquet",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_crypopipestoorage",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"symbol_norm": {
+				"type": "string",
+				"defaultValue": "iif(isNull(symbol), null(), lower(symbol))"
+			},
+			"last_updated_ts": {
+				"type": "string",
+				"defaultValue": "iif(isNull(last_updated), toTimestamp(currentUTC()), toTimestamp(last_updated))"
+			},
+			"current_price_dec": {
+				"type": "string",
+				"defaultValue": "iif(isNull(current_price), null(), toDecimal(current_price, 18, 8))"
+			},
+			"market_cap_long": {
+				"type": "string",
+				"defaultValue": "iif(isNull(market_cap), null(), toLong(market_cap))"
+			},
+			"price_change_pct_24h_dec": {
+				"type": "string",
+				"defaultValue": "iif(isNull(price_change_percentage_24h), null(), toDecimal(price_change_percentage_24h, 9, 6))"
+			},
+			"ingestion_time": {
+				"type": "string",
+				"defaultValue": "currentUTC()"
+			},
+			"source_basename": {
+				"type": "string",
+				"defaultValue": "split(source_file,'/')[size(split(source_file,'/')) - 1]"
+			},
+			"dedupe_key": {
+				"type": "string",
+				"defaultValue": "concat(id, '|', toString(last_updated_ts))"
+			},
+			"file_ts": {
+				"type": "string",
+				"defaultValue": "split(split(source_basename, '.')[0], '_')[size(split(split(source_basename,'.')[0], '_')) - 1]"
+			}
+		},
+		"annotations": [],
+		"type": "Parquet",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"folderPath": "coins",
+				"fileSystem": "silver"
+			},
+			"compressionCodec": "snappy"
+		},
+		"schema": []
+	}
+}
