@@ -1,0 +1,640 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adf-crypto-pipeline"
+		},
+		"ln_cryptopipestorage_properties_typeProperties_serviceEndpoint": {
+			"type": "string",
+			"defaultValue": "https://cryptopipestorage.blob.core.windows.net/"
+		},
+		"ls_crypopipestoorage_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://cryptopipestorage.dfs.core.windows.net/"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_bronze_to_silver')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "df_bronze_to_silver",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_bronze_to_silver",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"RawSource": {},
+									"sink1": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "ArchiveRaw",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "df_bronze_to_silver",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "BinarySource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": {
+										"value": "coins_markets/*/*/*/*",
+										"type": "Expression"
+									},
+									"wildcardFileName": "*.jsonl.gz",
+									"deleteFilesAfterCompletion": false
+								},
+								"formatSettings": {
+									"type": "BinaryReadSettings"
+								}
+							},
+							"sink": {
+								"type": "BinarySink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings",
+									"copyBehavior": "PreserveHierarchy"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_raw_binary",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_archive_coins",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					},
+					{
+						"name": "DeleteRaw",
+						"type": "Delete",
+						"dependsOn": [
+							{
+								"activity": "ArchiveRaw",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ds_delete_coins",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"logStorageSettings": {
+								"linkedServiceName": {
+									"referenceName": "ls_crypopipestoorage",
+									"type": "LinkedServiceReference"
+								},
+								"path": "archive"
+							},
+							"enableLogging": true,
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							}
+						}
+					}
+				],
+				"concurrency": 1,
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-09-05T20:43:11Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/df_bronze_to_silver')]",
+				"[concat(variables('factoryId'), '/datasets/ds_raw_binary')]",
+				"[concat(variables('factoryId'), '/datasets/ds_archive_coins')]",
+				"[concat(variables('factoryId'), '/datasets/ds_delete_coins')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_crypopipestoorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Jsonl')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_crypopipestoorage",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "coins_markets",
+						"fileSystem": "raw"
+					},
+					"compression": {
+						"type": "gzip",
+						"level": "Optimal"
+					}
+				},
+				"schema": {
+					"type": "object",
+					"properties": {
+						"id": {
+							"type": "string"
+						},
+						"symbol": {
+							"type": "string"
+						},
+						"name": {
+							"type": "string"
+						},
+						"image": {
+							"type": "string"
+						},
+						"current_price": {
+							"type": "number"
+						},
+						"market_cap": {
+							"type": "integer"
+						},
+						"market_cap_rank": {
+							"type": "integer"
+						},
+						"fully_diluted_valuation": {
+							"type": "integer"
+						},
+						"total_volume": {
+							"type": "integer"
+						},
+						"high_24h": {
+							"type": "number"
+						},
+						"low_24h": {
+							"type": "number"
+						},
+						"price_change_24h": {
+							"type": "number"
+						},
+						"price_change_percentage_24h": {
+							"type": "number"
+						},
+						"market_cap_change_24h": {
+							"type": "integer"
+						},
+						"market_cap_change_percentage_24h": {
+							"type": "number"
+						},
+						"circulating_supply": {
+							"type": "number"
+						},
+						"total_supply": {
+							"type": "number"
+						},
+						"max_supply": {
+							"type": "number"
+						},
+						"ath": {
+							"type": "number"
+						},
+						"ath_change_percentage": {
+							"type": "number"
+						},
+						"ath_date": {
+							"type": "string"
+						},
+						"atl": {
+							"type": "number"
+						},
+						"atl_change_percentage": {
+							"type": "number"
+						},
+						"atl_date": {
+							"type": "string"
+						},
+						"roi": {
+							"type": "object",
+							"properties": {
+								"times": {
+									"type": "number"
+								},
+								"currency": {
+									"type": "string"
+								},
+								"percentage": {
+									"type": "number"
+								}
+							}
+						},
+						"last_updated": {
+							"type": "string"
+						},
+						"price_change_percentage_1h_in_currency": {
+							"type": "number"
+						},
+						"price_change_percentage_24h_in_currency": {
+							"type": "number"
+						},
+						"price_change_percentage_7d_in_currency": {
+							"type": "number"
+						},
+						"_ingested_at_utc": {
+							"type": "string"
+						},
+						"year": {
+							"type": "string"
+						},
+						"month": {
+							"type": "string"
+						},
+						"day": {
+							"type": "string"
+						},
+						"hour": {
+							"type": "string"
+						}
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_crypopipestoorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Parquet')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_crypopipestoorage",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "coins",
+						"fileSystem": "silver"
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_crypopipestoorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_archive_coins')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_crypopipestoorage",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "coins",
+						"fileSystem": "archive"
+					},
+					"compression": {
+						"type": "gzip",
+						"level": "Optimal"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_crypopipestoorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_delete_coins')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_crypopipestoorage",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "coins_markets",
+						"fileSystem": "raw"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_crypopipestoorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_raw_binary')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_crypopipestoorage",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "coins_markets",
+						"fileSystem": "raw"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_crypopipestoorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_silver_parquet')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_crypopipestoorage",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"symbol_norm": {
+						"type": "string",
+						"defaultValue": "iif(isNull(symbol), null(), lower(symbol))"
+					},
+					"last_updated_ts": {
+						"type": "string",
+						"defaultValue": "iif(isNull(last_updated), toTimestamp(currentUTC()), toTimestamp(last_updated))"
+					},
+					"current_price_dec": {
+						"type": "string",
+						"defaultValue": "iif(isNull(current_price), null(), toDecimal(current_price, 18, 8))"
+					},
+					"market_cap_long": {
+						"type": "string",
+						"defaultValue": "iif(isNull(market_cap), null(), toLong(market_cap))"
+					},
+					"price_change_pct_24h_dec": {
+						"type": "string",
+						"defaultValue": "iif(isNull(price_change_percentage_24h), null(), toDecimal(price_change_percentage_24h, 9, 6))"
+					},
+					"ingestion_time": {
+						"type": "string",
+						"defaultValue": "currentUTC()"
+					},
+					"source_basename": {
+						"type": "string",
+						"defaultValue": "split(source_file,'/')[size(split(source_file,'/')) - 1]"
+					},
+					"dedupe_key": {
+						"type": "string",
+						"defaultValue": "concat(id, '|', toString(last_updated_ts))"
+					},
+					"file_ts": {
+						"type": "string",
+						"defaultValue": "split(split(source_basename, '.')[0], '_')[size(split(split(source_basename,'.')[0], '_')) - 1]"
+					}
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "coins",
+						"fileSystem": "silver"
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_crypopipestoorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ln_cryptopipestorage')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"serviceEndpoint": "[parameters('ln_cryptopipestorage_properties_typeProperties_serviceEndpoint')]",
+					"accountKind": "StorageV2"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_crypopipestoorage')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('ls_crypopipestoorage_properties_typeProperties_url')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/triggerfor1')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "pl_bronze_to_silver",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Hour",
+						"interval": 1,
+						"startTime": "2025-09-05T17:35:00",
+						"endTime": "2025-09-06T12:00:00",
+						"timeZone": "India Standard Time"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/pl_bronze_to_silver')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/df_bronze_to_silver')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "Jsonl",
+								"type": "DatasetReference"
+							},
+							"name": "RawSource"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "Parquet",
+								"type": "DatasetReference"
+							},
+							"name": "sink1",
+							"rejectedDataLinkedService": {
+								"referenceName": "ls_crypopipestoorage",
+								"type": "LinkedServiceReference"
+							}
+						}
+					],
+					"transformations": [
+						{
+							"name": "DerivedColumns"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          id as string,",
+						"          symbol as string,",
+						"          name as string,",
+						"          image as string,",
+						"          current_price as double,",
+						"          market_cap as integer,",
+						"          market_cap_rank as integer,",
+						"          fully_diluted_valuation as integer,",
+						"          total_volume as integer,",
+						"          high_24h as double,",
+						"          low_24h as double,",
+						"          price_change_24h as double,",
+						"          price_change_percentage_24h as double,",
+						"          market_cap_change_24h as integer,",
+						"          market_cap_change_percentage_24h as double,",
+						"          circulating_supply as double,",
+						"          total_supply as double,",
+						"          max_supply as double,",
+						"          ath as double,",
+						"          ath_change_percentage as double,",
+						"          ath_date as string,",
+						"          atl as double,",
+						"          atl_change_percentage as double,",
+						"          atl_date as string,",
+						"          roi as (times as double, currency as string, percentage as double),",
+						"          last_updated as string,",
+						"          price_change_percentage_1h_in_currency as double,",
+						"          price_change_percentage_24h_in_currency as double,",
+						"          price_change_percentage_7d_in_currency as double,",
+						"          {_ingested_at_utc} as string,",
+						"          year as string,",
+						"          month as string,",
+						"          day as string,",
+						"          hour as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     rowUrlColumn: 'source_file',",
+						"     documentForm: 'documentPerLine') ~> RawSource",
+						"RawSource derive(ingestion_time = currentUTC(),",
+						"          source_file = split(source_file, '/')[size(split(source_file, '/')) - 1]) ~> DerivedColumns",
+						"DerivedColumns sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'parquet',",
+						"     filePattern:(concat(toString(year(currentUTC())), '/',\r",
+						"       lpad(toString(month(currentUTC())),2,'0'), '/',\r",
+						"       lpad(toString(dayOfMonth(currentUTC())),2,'0'), '/',\r",
+						"       lpad(toString(hour(currentUTC())),2,'0'))\r",
+						"),",
+						"     umask: 0622,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> sink1"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/Jsonl')]",
+				"[concat(variables('factoryId'), '/datasets/Parquet')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_crypopipestoorage')]"
+			]
+		}
+	]
+}

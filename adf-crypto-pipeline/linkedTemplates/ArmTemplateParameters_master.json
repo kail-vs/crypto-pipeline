@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "adf-crypto-pipeline"
+		},
+		"ln_cryptopipestorage_properties_typeProperties_serviceEndpoint": {
+			"value": "https://cryptopipestorage.blob.core.windows.net/"
+		},
+		"ls_crypopipestoorage_properties_typeProperties_url": {
+			"value": "https://cryptopipestorage.dfs.core.windows.net/"
+		},
+		"containerUri": {
+			"value": ""
+		},
+		"containerSasToken": {
+			"value": ""
+		}
+	}
+}
