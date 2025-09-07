@@ -1,5 +1,5 @@
 {
-	"name": "ds_silver_parquet",
+	"name": "ds_dlq_parquet",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "ls_crypopipestoorage",
@@ -11,7 +11,7 @@
 			"location": {
 				"type": "AzureBlobFSLocation",
 				"folderPath": "coins",
-				"fileSystem": "silver"
+				"fileSystem": "dlq"
 			},
 			"compressionCodec": "snappy"
 		},

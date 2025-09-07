@@ -1,0 +1,159 @@
+{
+	"name": "df_silver_to_gold",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_silver_parquet",
+						"type": "DatasetReference"
+					},
+					"name": "SrcSilver"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_gold_parquet",
+						"type": "DatasetReference"
+					},
+					"name": "SinkGold",
+					"rejectedDataLinkedService": {
+						"referenceName": "ls_crypopipestoorage",
+						"type": "LinkedServiceReference"
+					}
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_dlq_parquet",
+						"type": "DatasetReference"
+					},
+					"name": "SinkDLQ",
+					"rejectedDataLinkedService": {
+						"referenceName": "ls_crypopipestoorage",
+						"type": "LinkedServiceReference"
+					}
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_dlq_parquet",
+						"type": "DatasetReference"
+					},
+					"name": "SinkDL",
+					"rejectedDataLinkedService": {
+						"referenceName": "ls_crypopipestoorage",
+						"type": "LinkedServiceReference"
+					}
+				}
+			],
+			"transformations": [
+				{
+					"name": "DcNormalize"
+				},
+				{
+					"name": "CsQuality"
+				},
+				{
+					"name": "WinDedupe"
+				},
+				{
+					"name": "DcPriceFail"
+				},
+				{
+					"name": "DcIDFail"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          id as string,",
+				"          symbol as string,",
+				"          name as string,",
+				"          image as string,",
+				"          current_price as double,",
+				"          market_cap as integer,",
+				"          market_cap_rank as integer,",
+				"          fully_diluted_valuation as integer,",
+				"          total_volume as integer,",
+				"          high_24h as double,",
+				"          low_24h as double,",
+				"          price_change_24h as double,",
+				"          price_change_percentage_24h as double,",
+				"          market_cap_change_24h as integer,",
+				"          market_cap_change_percentage_24h as double,",
+				"          circulating_supply as double,",
+				"          total_supply as double,",
+				"          max_supply as double,",
+				"          ath as double,",
+				"          ath_change_percentage as double,",
+				"          ath_date as string,",
+				"          atl as double,",
+				"          atl_change_percentage as double,",
+				"          atl_date as string,",
+				"          roi as (times as double, currency as string, percentage as double),",
+				"          last_updated as string,",
+				"          price_change_percentage_1h_in_currency as double,",
+				"          price_change_percentage_24h_in_currency as double,",
+				"          price_change_percentage_7d_in_currency as double,",
+				"          {_ingested_at_utc} as string,",
+				"          year as string,",
+				"          month as string,",
+				"          day as string,",
+				"          hour as string,",
+				"          ingestion_time as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     rowUrlColumn: 'source_file',",
+				"     format: 'parquet',",
+				"     wildcardPaths:['*/*/*/*']) ~> SrcSilver",
+				"SrcSilver derive(symbol = lower(symbol),",
+				"          last_updated_ts = toTimestamp(last_updated, \"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\"),",
+				"          current_price = toDecimal(current_price, 18, 8),",
+				"          market_cap = toLong(market_cap),",
+				"          ingestion_time = currentUTC()) ~> DcNormalize",
+				"DcNormalize split(isNull(symbol) || symbol == '',",
+				"     !isNull(current_price) && current_price < 0,",
+				"     disjoint: false) ~> CsQuality@(InvalidMissingID, InvalidPrice, Valid)",
+				"CsQuality@Valid window(desc(last_updated_ts, true),",
+				"     desc(ingestion_time, true),",
+				"     row_num = rowNumber()) ~> WinDedupe",
+				"CsQuality@InvalidPrice derive(fail_reason = \"negative price\") ~> DcPriceFail",
+				"CsQuality@InvalidMissingID derive(fail_reason = \"missing id\") ~> DcIDFail",
+				"WinDedupe sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     filePattern:(concat(toString(year(currentUTC())), '/',\r",
+				"       lpad(toString(month(currentUTC())),2,'0'), '/',\r",
+				"       lpad(toString(dayOfMonth(currentUTC())),2,'0'), '/',\r",
+				"       lpad(toString(hour(currentUTC())),2,'0'))\r",
+				"),",
+				"     umask: 0222,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     saveOrder: 2) ~> SinkGold",
+				"DcIDFail sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     saveOrder: 1) ~> SinkDLQ",
+				"DcPriceFail sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     saveOrder: 3) ~> SinkDL"
+			]
+		}
+	}
+}
