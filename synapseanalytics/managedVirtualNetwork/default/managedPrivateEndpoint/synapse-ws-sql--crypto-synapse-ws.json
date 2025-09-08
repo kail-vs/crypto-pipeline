@@ -1,0 +1,10 @@
+{
+	"name": "synapse-ws-sql--crypto-synapse-ws",
+	"properties": {
+		"privateLinkResourceId": "/subscriptions/162c552f-9bbc-4268-ae04-e728e50b186a/resourceGroups/rg-crypto-pipeline/providers/Microsoft.Synapse/workspaces/crypto-synapse-ws",
+		"groupId": "sql",
+		"fqdns": [
+			"crypto-synapse-ws.2ac81952-fccc-4c73-a66d-b39b08dbe4e5.sql.azuresynapse.net"
+		]
+	}
+}

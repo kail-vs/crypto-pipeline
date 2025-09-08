@@ -1,0 +1,7 @@
+{
+	"name": "synapse-ws-custstgacct--crypto-synapse-ws-cryptopipestorage",
+	"properties": {
+		"privateLinkResourceId": "/subscriptions/162c552f-9bbc-4268-ae04-e728e50b186a/resourceGroups/rg-crypto-pipeline/providers/Microsoft.Storage/storageAccounts/cryptopipestorage",
+		"groupId": "dfs"
+	}
+}

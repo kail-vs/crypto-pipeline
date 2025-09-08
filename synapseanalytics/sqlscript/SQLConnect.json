@@ -1,0 +1,17 @@
+{
+	"name": "SQLConnect",
+	"properties": {
+		"content": {
+			"query": "CREATE DATABASE crypto_db;\n\nCREATE EXTERNAL DATA SOURCE crypto_dls\nWITH ( \n    LOCATION = 'abfss://gold@cryptopipestorage.dfs.core.windows.net' \n);\n\nCREATE EXTERNAL FILE FORMAT ParquetFormat\nWITH (\n    FORMAT_TYPE = PARQUET\n);\nGO\n\nCREATE OR ALTER VIEW dbo.vw_gold_coins_raw AS\nSELECT *\nFROM OPENROWSET(\n    BULK 'coins/*/*/*/*',\n    DATA_SOURCE = 'crypto_dls',\n    FORMAT = 'PARQUET'\n) AS rows;\nGO\n\nCREATE OR ALTER VIEW dbo.vw_gold_coins AS\nSELECT\n    r.*,\n    j.[times]      AS roi_times,\n    j.[currency]   AS roi_currency,\n    j.[percentage] AS roi_percentage\nFROM dbo.vw_gold_coins_raw r\nOUTER APPLY OPENJSON(TRY_CAST(r.roi AS NVARCHAR(MAX)))\nWITH (\n    [times] FLOAT        '$.times',\n    [currency] NVARCHAR(50) '$.currency',\n    [percentage] FLOAT   '$.percentage'\n) j;\nGO\n\n\nSELECT TOP 10 * FROM dbo.vw_gold_coins;",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "crypto_db",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
