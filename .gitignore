@@ -7,7 +7,6 @@ __pycache__/
 .local.settings.json
 local.settings.json
 .venv/
-.vscode/
 
 # C extensions
 *.so
