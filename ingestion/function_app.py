@@ -15,7 +15,6 @@ app = func.FunctionApp()
 CG_PER_PAGE = int(os.getenv("CG_PER_PAGE", "250"))
 CG_PAGE = int(os.getenv("CG_PAGE", "1"))
 RAW_CONTAINER = os.getenv("RAW_CONTAINER", "raw")
-
 COINGECKO_URL = "https://api.coingecko.com/api/v3/coins/markets"
 
 def fetch_coingecko(per_page=250, page=1, max_attempts=3):
@@ -68,20 +67,47 @@ def upload_to_blob(container_name: str, blob_path: str, stream: io.BytesIO):
     content_settings = ContentSettings(content_type="application/x-ndjson", content_encoding="gzip")
     blob_client.upload_blob(stream, overwrite=True, content_settings=content_settings)
 
+def write_to_deadletter(error_msg: str, context: dict):
+    conn_str = os.getenv("AzureWebJobsStorage")
+    if not conn_str:
+        logging.error("AzureWebJobsStorage not set; cannot write to deadletter")
+        return
+
+    blob_service = BlobServiceClient.from_connection_string(conn_str)
+    blob_client = blob_service.get_blob_client(
+        container="deadletter",
+        blob=f"failed_ingest/{datetime.datetime.utcnow().strftime('%Y/%m/%d/%H')}/error_{int(time.time())}.json"
+    )
+    payload = {
+        "error": error_msg,
+        "context": context,
+        "timestamp_utc": datetime.datetime.utcnow().isoformat() + "Z"
+    }
+
+    try:
+        blob_client.upload_blob(
+            json.dumps(payload),
+            overwrite=True,
+            content_settings=ContentSettings(content_type="application/json")
+        )
+        logging.info("Wrote failure to deadletter container")
+    except Exception as e:
+        logging.exception(f"Failed to write to deadletter: {e}")
+
 @app.function_name(name="cg_ingest_timer")
 @app.schedule(schedule="0 */5 * * * *", arg_name="mytimer", run_on_startup=False, use_monitor=True)
 def cg_ingest_timer(mytimer: func.TimerRequest) -> None:
     logging.info("cg_ingest_timer triggered")
+
     now = datetime.datetime.utcnow().replace(microsecond=0)
     ts_iso = now.isoformat() + "Z"
-    y = now.strftime("%Y")
-    m = now.strftime("%m")
-    d = now.strftime("%d")
-    H = now.strftime("%H")
+    y, m, d, H = now.strftime("%Y"), now.strftime("%m"), now.strftime("%d"), now.strftime("%H")
+
     try:
         data = fetch_coingecko(per_page=CG_PER_PAGE, page=CG_PAGE)
     except Exception as e:
         logging.error(f"Failed to fetch data: {e}")
+        write_to_deadletter(str(e), {"stage": "fetch", "page": CG_PAGE})
         return
 
     gz_stream = create_ndjson_gz(data, ts_iso)
@@ -92,3 +118,4 @@ def cg_ingest_timer(mytimer: func.TimerRequest) -> None:
         logging.info(f"Uploaded {len(data)} records to {RAW_CONTAINER}/{blob_name}")
     except Exception as e:
         logging.exception(f"Upload failed: {e}")
+        write_to_deadletter(str(e), {"stage": "upload", "blob_name": blob_name, "count": len(data)})
