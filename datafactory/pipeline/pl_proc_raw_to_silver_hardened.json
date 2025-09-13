@@ -302,12 +302,6 @@
 			}
 		],
 		"concurrency": 1,
-		"parameters": {
-			"fileName": {
-				"type": "string",
-				"defaultValue": "@concat('metadata_', item().name, '_', pipeline().RunId, '.json')"
-			}
-		},
 		"annotations": []
 	}
 }
