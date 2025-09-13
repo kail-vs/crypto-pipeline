@@ -1,5 +1,10 @@
 {
 	"name": "adf-crypto-pipeline",
+	"properties": {
+		"globalConfigurations": {
+			"PipelineBillingEnabled": "true"
+		}
+	},
 	"location": "southeastasia",
 	"identity": {
 		"type": "SystemAssigned",
