@@ -23,11 +23,28 @@
 						"referenceName": "ls_crypopipestoorage",
 						"type": "LinkedServiceReference"
 					}
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_deadletter_json",
+						"type": "DatasetReference"
+					},
+					"name": "sink2",
+					"rejectedDataLinkedService": {
+						"referenceName": "ls_crypopipestoorage",
+						"type": "LinkedServiceReference"
+					}
 				}
 			],
 			"transformations": [
 				{
 					"name": "DerivedColumns"
+				},
+				{
+					"name": "split1"
+				},
+				{
+					"name": "derivedColumn1"
 				}
 			],
 			"scriptLines": [
@@ -72,8 +89,11 @@
 				"     ignoreNoFilesFound: false,",
 				"     rowUrlColumn: 'source_file',",
 				"     documentForm: 'documentPerLine') ~> RawSource",
-				"RawSource derive(ingestion_time = currentUTC(),",
+				"split1@valid derive(ingestion_time = currentUTC(),",
 				"          source_file = split(source_file, '/')[size(split(source_file, '/')) - 1]) ~> DerivedColumns",
+				"RawSource split(!isNull(symbol) && current_price > 0,",
+				"     disjoint: false) ~> split1@(valid, invalid)",
+				"split1@invalid derive(fail_reason = \"invalid row\") ~> derivedColumn1",
 				"DerivedColumns sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     format: 'parquet',",
@@ -86,7 +106,18 @@
 				"     preCommands: [],",
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
-				"     skipDuplicateMapOutputs: true) ~> sink1"
+				"     skipDuplicateMapOutputs: true,",
+				"     outputAssertFailedRows: true,",
+				"     assertFailure_fileSystem: 'logger',",
+				"     assertFailure_folderPath: 'df_bronze_to_silver_errors') ~> sink1",
+				"derivedColumn1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     filePattern:(concat(toString(year(currentUTC())), '/',       lpad(toString(month(currentUTC())),2,'0'), '/',       lpad(toString(dayOfMonth(currentUTC())),2,'0'), '/',       lpad(toString(hour(currentUTC())),2,'0'))),",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sink2"
 			]
 		}
 	}
