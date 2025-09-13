@@ -7,10 +7,6 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "adf-crypto-pipeline"
 		},
-		"ln_cryptopipestorage_properties_typeProperties_serviceEndpoint": {
-			"type": "string",
-			"defaultValue": "https://cryptopipestorage.blob.core.windows.net/"
-		},
 		"ls_crypopipestoorage_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://cryptopipestorage.dfs.core.windows.net/"
@@ -45,7 +41,8 @@
 								"parameters": {},
 								"datasetParameters": {
 									"RawSource": {},
-									"sink1": {}
+									"sink1": {},
+									"sink2": {}
 								}
 							},
 							"staging": {},
@@ -209,6 +206,346 @@
 				"[concat(variables('factoryId'), '/datasets/ds_archive_coins')]",
 				"[concat(variables('factoryId'), '/datasets/ds_delete_coins')]",
 				"[concat(variables('factoryId'), '/dataflows/df_silver_to_gold')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_crypopipestoorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_proc_raw_to_silver_hardened')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Get Metadata1",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ds_raw_binary",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEach1",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get Metadata1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get Metadata1').output.childItems",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "If Condition1_copy1",
+									"type": "IfCondition",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@contains(item().name, 'coins_markets')",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "df_bronze_to_silver_copy1",
+												"type": "ExecuteDataFlow",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.00:20:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"dataflow": {
+														"referenceName": "df_bronze_to_silver",
+														"type": "DataFlowReference",
+														"parameters": {},
+														"datasetParameters": {
+															"RawSource": {},
+															"sink1": {},
+															"sink2": {}
+														}
+													},
+													"staging": {},
+													"compute": {
+														"coreCount": 8,
+														"computeType": "General"
+													},
+													"traceLevel": "Fine",
+													"runConcurrently": true
+												}
+											},
+											{
+												"name": "Copy data1_copy1",
+												"type": "Copy",
+												"dependsOn": [
+													{
+														"activity": "df_bronze_to_silver_copy1",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.00:20:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "BinarySource",
+														"storeSettings": {
+															"type": "AzureBlobFSReadSettings",
+															"recursive": true,
+															"wildcardFolderPath": "coins_markets/*/*/*/*",
+															"wildcardFileName": "*.json.gz",
+															"deleteFilesAfterCompletion": false
+														},
+														"formatSettings": {
+															"type": "BinaryReadSettings"
+														}
+													},
+													"sink": {
+														"type": "BinarySink",
+														"storeSettings": {
+															"type": "AzureBlobFSWriteSettings",
+															"copyBehavior": "PreserveHierarchy",
+															"metadata": [
+																{
+																	"name": "copyraw",
+																	"value": "$$LASTMODIFIED"
+																}
+															]
+														}
+													},
+													"enableStaging": false,
+													"logSettings": {
+														"enableCopyActivityLog": true,
+														"copyActivityLogSettings": {
+															"logLevel": "Info",
+															"enableReliableLogging": false
+														},
+														"logLocationSettings": {
+															"linkedServiceName": {
+																"referenceName": "ls_crypopipestoorage",
+																"type": "LinkedServiceReference"
+															},
+															"path": "logger/raw_copy_logs"
+														}
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "ds_raw_binary",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "ds_archive_coins",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												]
+											},
+											{
+												"name": "Copy data3_copy1",
+												"type": "Copy",
+												"dependsOn": [
+													{
+														"activity": "df_bronze_to_silver_copy1",
+														"dependencyConditions": [
+															"Failed"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "BinarySource",
+														"storeSettings": {
+															"type": "AzureBlobFSReadSettings",
+															"recursive": true,
+															"wildcardFolderPath": "coins_markets/*/*/*/*",
+															"wildcardFileName": "*.jsonl.gz",
+															"deleteFilesAfterCompletion": false
+														},
+														"formatSettings": {
+															"type": "BinaryReadSettings"
+														}
+													},
+													"sink": {
+														"type": "BinarySink",
+														"storeSettings": {
+															"type": "AzureBlobFSWriteSettings",
+															"copyBehavior": "PreserveHierarchy"
+														}
+													},
+													"enableStaging": false,
+													"enableSkipIncompatibleRow": true,
+													"logSettings": {
+														"enableCopyActivityLog": true,
+														"copyActivityLogSettings": {
+															"logLevel": "Info",
+															"enableReliableLogging": false
+														},
+														"logLocationSettings": {
+															"linkedServiceName": {
+																"referenceName": "ls_crypopipestoorage",
+																"type": "LinkedServiceReference"
+															},
+															"path": "logger/raw_error_logs"
+														}
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "ds_raw_binary",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "ds_deadletter_binary",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												]
+											},
+											{
+												"name": "Copy data4_copy1",
+												"type": "Copy",
+												"dependsOn": [
+													{
+														"activity": "Copy data1_copy1",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "JsonSource",
+														"storeSettings": {
+															"type": "AzureBlobFSReadSettings",
+															"recursive": true,
+															"wildcardFolderPath": "**/*",
+															"wildcardFileName": "*.parquet",
+															"enablePartitionDiscovery": false
+														},
+														"formatSettings": {
+															"type": "JsonReadSettings"
+														}
+													},
+													"sink": {
+														"type": "JsonSink",
+														"storeSettings": {
+															"type": "AzureBlobFSWriteSettings",
+															"copyBehavior": "FlattenHierarchy"
+														},
+														"formatSettings": {
+															"type": "JsonWriteSettings",
+															"filePattern": "setOfObjects"
+														}
+													},
+													"enableStaging": false
+												},
+												"inputs": [
+													{
+														"referenceName": "ds_deadletter_json",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "ds_metadata",
+														"type": "DatasetReference",
+														"parameters": {
+															"fileName": "@concat('metadata_', item().name, '_', pipeline().RunId, '.json')"
+														}
+													}
+												]
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"concurrency": 1,
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"fileName": {
+						"type": "string",
+						"defaultValue": "@concat('metadata_', item().name, '_', pipeline().RunId, '.json')"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_raw_binary')]",
+				"[concat(variables('factoryId'), '/dataflows/df_bronze_to_silver')]",
+				"[concat(variables('factoryId'), '/datasets/ds_archive_coins')]",
+				"[concat(variables('factoryId'), '/datasets/ds_deadletter_binary')]",
+				"[concat(variables('factoryId'), '/datasets/ds_deadletter_json')]",
+				"[concat(variables('factoryId'), '/datasets/ds_metadata')]",
 				"[concat(variables('factoryId'), '/linkedServices/ls_crypopipestoorage')]"
 			]
 		},
@@ -410,6 +747,51 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/ds_deadletter_binary')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_crypopipestoorage",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileSystem": "deadletter"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_crypopipestoorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_deadletter_json')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_crypopipestoorage",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileSystem": "deadletter"
+					}
+				},
+				"schema": {}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_crypopipestoorage')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/ds_delete_coins')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -483,6 +865,38 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/ds_metadata')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_crypopipestoorage",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"fileName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().fileName",
+							"type": "Expression"
+						},
+						"fileSystem": "metadata"
+					}
+				},
+				"schema": {}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_crypopipestoorage')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/ds_raw_binary')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -529,20 +943,6 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/ls_crypopipestoorage')]"
 			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/ln_cryptopipestorage')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "AzureBlobStorage",
-				"typeProperties": {
-					"serviceEndpoint": "[parameters('ln_cryptopipestorage_properties_typeProperties_serviceEndpoint')]",
-					"accountKind": "StorageV2"
-				}
-			},
-			"dependsOn": []
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/ls_crypopipestoorage')]",
@@ -605,11 +1005,28 @@
 								"referenceName": "ls_crypopipestoorage",
 								"type": "LinkedServiceReference"
 							}
+						},
+						{
+							"dataset": {
+								"referenceName": "ds_deadletter_json",
+								"type": "DatasetReference"
+							},
+							"name": "sink2",
+							"rejectedDataLinkedService": {
+								"referenceName": "ls_crypopipestoorage",
+								"type": "LinkedServiceReference"
+							}
 						}
 					],
 					"transformations": [
 						{
 							"name": "DerivedColumns"
+						},
+						{
+							"name": "split1"
+						},
+						{
+							"name": "derivedColumn1"
 						}
 					],
 					"scriptLines": [
@@ -654,8 +1071,11 @@
 						"     ignoreNoFilesFound: false,",
 						"     rowUrlColumn: 'source_file',",
 						"     documentForm: 'documentPerLine') ~> RawSource",
-						"RawSource derive(ingestion_time = currentUTC(),",
+						"split1@valid derive(ingestion_time = currentUTC(),",
 						"          source_file = split(source_file, '/')[size(split(source_file, '/')) - 1]) ~> DerivedColumns",
+						"RawSource split(!isNull(symbol) && current_price > 0,",
+						"     disjoint: false) ~> split1@(valid, invalid)",
+						"split1@invalid derive(fail_reason = \"invalid row\") ~> derivedColumn1",
 						"DerivedColumns sink(allowSchemaDrift: true,",
 						"     validateSchema: false,",
 						"     format: 'parquet',",
@@ -668,14 +1088,26 @@
 						"     preCommands: [],",
 						"     postCommands: [],",
 						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> sink1"
+						"     skipDuplicateMapOutputs: true,",
+						"     outputAssertFailedRows: true,",
+						"     assertFailure_fileSystem: 'logger',",
+						"     assertFailure_folderPath: 'df_bronze_to_silver_errors') ~> sink1",
+						"derivedColumn1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     filePattern:(concat(toString(year(currentUTC())), '/',       lpad(toString(month(currentUTC())),2,'0'), '/',       lpad(toString(dayOfMonth(currentUTC())),2,'0'), '/',       lpad(toString(hour(currentUTC())),2,'0'))),",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> sink2"
 					]
 				}
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/Jsonl')]",
 				"[concat(variables('factoryId'), '/datasets/Parquet')]",
-				"[concat(variables('factoryId'), '/linkedServices/ls_crypopipestoorage')]"
+				"[concat(variables('factoryId'), '/linkedServices/ls_crypopipestoorage')]",
+				"[concat(variables('factoryId'), '/datasets/ds_deadletter_json')]"
 			]
 		},
 		{

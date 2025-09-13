@@ -7,10 +7,6 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "adf-crypto-pipeline"
 		},
-		"ln_cryptopipestorage_properties_typeProperties_serviceEndpoint": {
-			"type": "string",
-			"defaultValue": "https://cryptopipestorage.blob.core.windows.net/"
-		},
 		"ls_crypopipestoorage_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://cryptopipestorage.dfs.core.windows.net/"
@@ -41,9 +37,6 @@
 				"parameters": {
 					"factoryName": {
 						"value": "[parameters('factoryName')]"
-					},
-					"ln_cryptopipestorage_properties_typeProperties_serviceEndpoint": {
-						"value": "[parameters('ln_cryptopipestorage_properties_typeProperties_serviceEndpoint')]"
 					},
 					"ls_crypopipestoorage_properties_typeProperties_url": {
 						"value": "[parameters('ls_crypopipestoorage_properties_typeProperties_url')]"
