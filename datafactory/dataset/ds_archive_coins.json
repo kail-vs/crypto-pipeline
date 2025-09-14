@@ -12,10 +12,6 @@
 				"type": "AzureBlobFSLocation",
 				"folderPath": "coins",
 				"fileSystem": "archive"
-			},
-			"compression": {
-				"type": "gzip",
-				"level": "Optimal"
 			}
 		}
 	},
