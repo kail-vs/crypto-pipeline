@@ -5,7 +5,6 @@ It ingests raw market data from the CoinGecko API at five-minute intervals, appl
 
 The pipeline is designed with automation, monitoring, and scalability in mind, and supports analysis across 250+ crypto assets with minimal manual intervention.  
 
----
 
 ## Architecture Overview
 The pipeline follows a layered data architecture:
@@ -40,7 +39,6 @@ The pipeline follows a layered data architecture:
      - Market overview treemap (sized by market cap, colored by 24h % change)
      - Multi-coin normalized price comparison
 
----
 
 ## Features
 - Automated ingestion every 5 minutes
@@ -51,7 +49,6 @@ The pipeline follows a layered data architecture:
 - Role-based access control for all Azure components
 - GitHub integration for source control and CI/CD
 
----
 
 ## Technology Stack
 - **Ingestion**: Azure Functions  
@@ -61,7 +58,6 @@ The pipeline follows a layered data architecture:
 - **Visualization**: Power BI  
 - **DevOps**: GitHub for version control and deployment  
 
----
 
 ## Setup and Deployment
 
@@ -94,9 +90,6 @@ The pipeline follows a layered data architecture:
 6.  Trigger the ADF master pipeline or allow the hourly trigger to execute.
     
 7.  Connect Power BI to Synapse serverless SQL and load the data model.
-    
-
-----------
 
 ## Data Model
 
@@ -112,8 +105,6 @@ The pipeline follows a layered data architecture:
         
     -   DLQ container for malformed/error records
         
-
-----------
 
 ## Dashboard Preview
 
@@ -134,7 +125,6 @@ This repository serves as source control for the pipeline and contains:
 - Configuration files for linked services and connections
 - Supporting scripts and deployment resources
 
----
 
 ## Roadmap
 
